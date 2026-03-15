@@ -74,23 +74,31 @@ class ReActExecutor:
         return get_llm_client(api_key=self.api_key, base_url=self.base_url, provider=self.provider)
 
     def _build_system_prompt(self, step: str, user_query: str) -> str:
+        """
+        System prompt
+            明确写清：只负责完成「当前子任务」这一条，不要执行用户问题里的其他步骤。
+            强调：完成当前子任务后必须马上给出 Final Answer 结束本步，不要在本轮继续用工具做下一步或后续步骤。
+            把「用户原始问题」改成「仅供参考，勿在本步执行其他部分」。
+        """
         tools_desc = _tools_description(self.tools)
-        return f"""你是一个 ReAct 推理助手。请针对当前子任务进行一步步推理，并在需要时调用工具。
+        return f"""你是一个 ReAct 推理助手。你**只负责完成下面这一条「当前子任务」**，不要执行用户问题中的其他步骤。
 
-                当前子任务：{step}
-                用户原始问题：{user_query}
+            【重要】完成当前子任务后必须立即给出 Final Answer，结束本步；不要在本轮中继续调用工具去做下一步或后续任何步骤。
 
-                可用工具：
-                {tools_desc}
+            当前子任务：{step}
+            用户原始问题（仅供参考，勿在本步执行其他部分）：{user_query}
 
-                你必须严格按以下格式输出（每轮只输出一次 Thought，然后二选一）：
-                Thought: <你的推理>
-                Action: <工具名>[<工具输入>]
-                或
-                Thought: <你的推理>
-                Final Answer: <针对当前子任务的结论>
+            可用工具：
+            {tools_desc}
 
-                若无需调用工具即可得出结论，请直接输出 Thought 与 Final Answer。"""
+            你必须严格按以下格式输出（每轮只输出一次 Thought，然后二选一）：
+            Thought: <你的推理>
+            Action: <工具名>[<工具输入>]
+            或
+            Thought: <你的推理>
+            Final Answer: <仅针对当前子任务的结论>
+
+            若无需调用工具即可得出结论，请直接输出 Thought 与 Final Answer。完成当前子任务后即应给出 Final Answer，不要继续 Action。"""
 
     def _call_llm(self, messages: List[Dict[str, str]]) -> Optional[str]:
         api_key = get_api_key(self.api_key, provider=self.provider)
@@ -128,7 +136,7 @@ class ReActExecutor:
         system = self._build_system_prompt(step, user_query)
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": system},
-            {"role": "user", "content": "请开始推理并给出第一轮 Thought，以及 Action 或 Final Answer。"},
+            {"role": "user", "content": "请只完成当前子任务，完成后即给出 Final Answer。开始第一轮：Thought 与 Action 或 Final Answer。"},
         ]
         transcript: List[str] = []
         round_count = 0
@@ -157,7 +165,7 @@ class ReActExecutor:
                 messages.append({"role": "assistant", "content": response})
                 messages.append({
                     "role": "user",
-                    "content": f"Observation: {observation}\n\n请继续推理，给出下一轮 Thought，然后 Action 或 Final Answer。",
+                    "content": f"Observation: {observation}\n\n请继续推理。若当前子任务已完成，请直接给出 Final Answer 结束本步；否则可再调用工具。每轮只输出 Thought 与 Action 或 Final Answer。",
                 })
                 continue
 

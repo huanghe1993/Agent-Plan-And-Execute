@@ -179,6 +179,8 @@ python -m pytest tests/test_plan_react_agent.py -v
 python -m pytest tests/test_plan_react_agent_real.py -v
 # 排除慢速集成测试只跑单元测试
 python -m pytest tests/ -v -m "not slow"
+
+python -m unittest tests.test_plan_react_agent_real.TestRealIncrementalReplan.test_second_step_fail_then_incremental_replan -v
 ```
 
 | 用例 | 说明 |

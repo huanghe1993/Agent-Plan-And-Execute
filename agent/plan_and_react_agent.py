@@ -74,6 +74,7 @@ class PlanAndReActAgent:
             if self.replan_policy and self.replan_policy.should_replan(state):
                 print("\n⚠️ 触发 Replan：上一步执行不理想，重新规划中…\n")
                 if self.replan_policy.mode == "incremental":
+                    print("\n⚠️  触发增量 Replan\n")
                     # 为增量式重规划构造「剩余任务」描述，供 Planner 仅规划从失败步起的新路径。
                     remaining_prompt = self._build_remaining_task_prompt(state)
                     # 生成剩余任务计划存储到new_plan_remaining列表中
