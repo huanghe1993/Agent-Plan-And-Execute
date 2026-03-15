@@ -22,22 +22,26 @@ class PlanAndReActAgent:
     def _build_remaining_task_prompt(self, state: AgentState) -> str:
         """为增量式重规划构造「剩余任务」描述，供 Planner 仅规划从失败步起的新路径。"""
         completed_count = state.current_step_index - 1
+        # 第一步就失败时，尚无已完成步骤，仅基于失败信息重规划
         if completed_count <= 0:
             return (
                 f"原始任务：{state.user_query}\n\n"
+                "（第一步即失败，尚无已完成步骤。）\n\n"
                 f"当前步骤「{state.last_step}」执行失败，结果如下：\n{state.last_step_result}\n\n"
                 "请针对「剩余任务」给出新的执行步骤（从本步起，可包含重试或替代方案），每行一步，带编号。"
             )
+        # 不是第一步就失败时，基于已完成步骤和失败信息重规划
+        # 构造已完成步骤及结果的描述
         completed_lines = []
         for i in range(completed_count):
             step_text = state.plan[i]
-            result_preview = (state.step_results[i] or "")[:300].replace("\n", " ")
+            result_preview = (state.step_results[i] or "")[:300].replace("\n", " ") # 结果预览
             completed_lines.append(f"  {i + 1}. {step_text} → {result_preview}…")
         return (
             f"原始任务：{state.user_query}\n\n"
-            "已完成步骤及结果：\n" + "\n".join(completed_lines) + "\n\n"
-            f"当前步骤「{state.last_step}」执行失败，结果如下：\n{state.last_step_result}\n\n"
-            "请仅针对「剩余任务」给出新的执行步骤（从当前失败步骤起，可包含重试或替代方案），每行一步，带编号。"
+            "已完成步骤及结果：\n" + "\n".join(completed_lines) + "\n\n" # 已完成步骤及结果
+            f"当前步骤「{state.last_step}」执行失败，结果如下：\n{state.last_step_result}\n\n" # 失败步骤及结果
+            "请仅针对「剩余任务」给出新的执行步骤（从当前失败步骤起，可包含重试或替代方案），每行一步，带编号。" # 剩余任务描述
         )
 
     def run(self, user_query: str) -> str:
@@ -68,16 +72,21 @@ class PlanAndReActAgent:
             if self.replan_policy and self.replan_policy.should_replan(state):
                 print("\n⚠️ 触发 Replan：上一步执行不理想，重新规划中…\n")
                 if self.replan_policy.mode == "incremental":
+                    # 为增量式重规划构造「剩余任务」描述，供 Planner 仅规划从失败步起的新路径。
                     remaining_prompt = self._build_remaining_task_prompt(state)
+                    # 生成剩余任务计划存储到new_plan_remaining列表中
                     new_plan_remaining = self.planner.make_plan(remaining_prompt)
                     if new_plan_remaining:
+                        # 触发增量式重规划，保留已完成步骤，仅重塑剩余路径
                         state.trigger_incremental_replan(new_plan_remaining)
                         print("（增量式重规划：保留已完成步骤，仅重塑剩余路径）\n")
                     else:
+                        # 如果生成剩余任务计划失败，则进行整份重规划
                         fallback_plan = self.planner.make_plan(user_query) or state.plan
                         state.trigger_replan(fallback_plan, keep_previous_results=False)
                 else:
-                    hint = f"（上一轮步骤「{state.last_step}」执行不理想，请重新规划）" if state.last_step else ""
+                    # 整份重规划, 重新规划全部步骤
+                    hint = f"（上一轮步骤「{state.last_step}」执行不理想，请重新规划）" if state.last_step else "" # 上一轮步骤执行不理想，请重新规划
                     new_plan = self.planner.make_plan(user_query + hint)
                     state.trigger_replan(new_plan, keep_previous_results=False)
                 continue
