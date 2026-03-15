@@ -1,0 +1,4 @@
+# Plan-and-Execute + ReAct Agent
+# LLM 规划依赖 OpenAI API（或兼容接口）
+openai>=1.40.0
+python-dotenv>=1.0.0
