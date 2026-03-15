@@ -1,7 +1,7 @@
 # Plan-and-Execute + ReAct 混合 Agent 示例（Python）
 
 这是一个可直接运行的示例工程，展示了如何用 Python 实现 **Plan-and-Execute + ReAct** 混合推理 Agent。
-
+https://cdn.nlark.com/yuque/0/2026/png/297975/1773559460523-90995604-0d1c-4373-bce6-9b3aa6ee125a.png
 ## 1. 环境要求
 
 - Python 版本：3.9+（推荐 3.10+）
@@ -163,14 +163,38 @@ python main.py
 - **ReplanPolicy(mode="full")**：整份计划重规划，从步骤 0 重新执行全部（不保留此前结果）。
 - 使用方式：`PlanAndReActAgent(..., replan_policy=ReplanPolicy(mode="incremental"))`；`main.py` 中已默认启用增量式 Replan。
 
-## 8. 扩展方向
+## 8. 测试
+
+### 单元测试（Mock，快速）
+
+```bash
+python -m pytest tests/test_plan_react_agent.py -v
+```
+
+### 真实 Case 集成测试（无 Mock，需 API Key）
+
+使用真实 Planner、Executor 与工具，不 Mock。需配置 `DEEPSEEK_API_KEY` 或 `DASHSCOPE_API_KEY`，运行较慢。
+
+```bash
+python -m pytest tests/test_plan_react_agent_real.py -v
+# 排除慢速集成测试只跑单元测试
+python -m pytest tests/ -v -m "not slow"
+```
+
+| 用例 | 说明 |
+|------|------|
+| **不需要 Replan** | 查询：「帮我规划5天深圳到厦门的行程」。全程顺利执行，断言输出含用户问题、高层计划、执行过程、最终总结及深圳/厦门。 |
+| **需要全量 Replan** | 查询：先调用「测试失败」工具（会报错）再用计算器算 10+20。第一步失败触发 full replan，整份重跑后断言含重规划与 30。 |
+| **需要增量 Replan** | 查询：先查深圳天气 → 调用「测试失败」→ 算 1+1。第二步失败触发 incremental replan，保留第一步结果，断言含重规划、深圳、2。 |
+
+## 9. 扩展方向
 
 - 在 `tools.py` 中增加真实业务工具，例如：
   - 调用搜索 API、向量数据库；
   - 查询内部服务 / 数据库；
   - 调用计算、翻译等微服务。
 
-## 9. 许可证
+## 10. 许可证
 
 你可以自由修改、商用或集成该代码，无需署名。
 

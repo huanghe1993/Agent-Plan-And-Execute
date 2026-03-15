@@ -58,7 +58,9 @@ class PlanAndReActAgent:
             # 如果计划为空，则跳出循环
             if not state.plan:
                 break
-
+            # 打印计划
+            print(f"计划：{state.plan}")
+            print("-"*50)
             # 2. execute 节点：执行当前一步
             step = state.plan[state.current_step_index]
             step_header = f"=== 执行步骤 {state.current_step_index + 1}: {step} ==="
@@ -86,7 +88,7 @@ class PlanAndReActAgent:
                         state.trigger_replan(fallback_plan, keep_previous_results=False)
                 else:
                     # 整份重规划, 重新规划全部步骤
-                    hint = f"（上一轮步骤「{state.last_step}」执行不理想，请重新规划）" if state.last_step else "" # 上一轮步骤执行不理想，请重新规划
+                    hint = f"（上一轮步骤「{state.last_step}」执行不理想，请重新规划）" if state.last_step else ""
                     new_plan = self.planner.make_plan(user_query + hint)
                     state.trigger_replan(new_plan, keep_previous_results=False)
                 continue
